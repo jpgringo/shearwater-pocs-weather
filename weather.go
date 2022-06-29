@@ -1,16 +1,18 @@
+// Package weather acts as a single point of contact for acquiring
+// weather data from any available source
 package weather
 
 import (
-	weatherTypes "github.com/jpgringo/shearwater-pocs-weather/type_definitions"
+	"github.com/jpgringo/shearwater-pocs-weather/internal/adapters/open_weather"
+	"github.com/jpgringo/shearwater-pocs-weather/type_definitions"
 	"sync"
-	"weather/internal/open_weather"
 )
 
-func GetWeather(config weatherTypes.Config, respCh chan weatherTypes.CurrentWeather, wg *sync.WaitGroup) {
-	var weatherFunc weatherTypes.GetWeatherFunc
+func GetWeather(config type_definitions.Config, respCh chan type_definitions.CurrentWeather, wg *sync.WaitGroup) {
+	var weatherFunc type_definitions.GetWeatherFunc
 	switch config.Service {
 	case "OpenWeather":
-		weatherFunc = open_weather.GetOpenWeather
+		weatherFunc = weather.GetOpenWeather
 	}
 	if weatherFunc == nil {
 		close(respCh)
@@ -18,5 +20,4 @@ func GetWeather(config weatherTypes.Config, respCh chan weatherTypes.CurrentWeat
 	} else {
 		weatherFunc(config, respCh, wg)
 	}
-
 }

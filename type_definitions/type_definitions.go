@@ -14,7 +14,7 @@ type Coordinates struct {
 type PrecipitationRecord struct {
 	PrecipitationType string
 	Window            int32
-	Amount            int32
+	Amount            float64
 }
 
 type WindData struct {

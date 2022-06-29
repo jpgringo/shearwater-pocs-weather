@@ -1,19 +1,19 @@
-package open_weather
+package weather
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jpgringo/shearwater-pocs-weather/type_definitions"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
 	"time"
-	"weather/types"
 )
 
 const owRequestTemplate = "https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&appid=%s&units=metric" // &exclude={part}
 
-var lastFetched *types.CurrentWeather
+var lastFetched *type_definitions.CurrentWeather
 var weatherLock sync.Mutex
 
 type owMain struct {
@@ -22,9 +22,9 @@ type owMain struct {
 	Pressure int32
 }
 
-type owPrecip struct {
-	Last1Hour  int32 `json:"1h"`
-	Last3Hours int32 `json:"3h"`
+type owPrecipitation struct {
+	Last1Hour  float64 `json:"1h"`
+	Last3Hours float64 `json:"3h"`
 }
 
 type owClouds struct {
@@ -33,19 +33,19 @@ type owClouds struct {
 
 type openWeatherData struct {
 	Base       string
-	Loc        types.Coordinates `json:"coord"`
+	Loc        type_definitions.Coordinates `json:"coord"`
 	Name       string
 	Main       owMain
 	Visibility int32
-	Wind       types.WindData
+	Wind       type_definitions.WindData
 	Clouds     owClouds
-	Rain       owPrecip
-	Snow       owPrecip
+	Rain       owPrecipitation
+	Snow       owPrecipitation
 	Dt         int64
 }
 
-func (v openWeatherData) convertToCurrentWeather() types.CurrentWeather {
-	cw := types.CurrentWeather{
+func (v openWeatherData) convertToCurrentWeather() type_definitions.CurrentWeather {
+	cw := type_definitions.CurrentWeather{
 		Loc:        v.Loc,
 		Name:       v.Name,
 		Timestamp:  time.Unix(v.Dt, 0),
@@ -57,22 +57,22 @@ func (v openWeatherData) convertToCurrentWeather() types.CurrentWeather {
 		Clouds:     v.Clouds.All,
 	}
 	cw.Precipitation = append(cw.Precipitation,
-		types.PrecipitationRecord{
+		type_definitions.PrecipitationRecord{
 			PrecipitationType: "Rain",
 			Window:            1,
 			Amount:            v.Rain.Last1Hour,
 		},
-		types.PrecipitationRecord{
+		type_definitions.PrecipitationRecord{
 			PrecipitationType: "Rain",
 			Window:            3,
 			Amount:            v.Rain.Last3Hours,
 		},
-		types.PrecipitationRecord{
+		type_definitions.PrecipitationRecord{
 			PrecipitationType: "Snow",
 			Window:            1,
 			Amount:            v.Snow.Last1Hour,
 		},
-		types.PrecipitationRecord{
+		type_definitions.PrecipitationRecord{
 			PrecipitationType: "Snow",
 			Window:            3,
 			Amount:            v.Snow.Last3Hours,
@@ -81,7 +81,7 @@ func (v openWeatherData) convertToCurrentWeather() types.CurrentWeather {
 	return cw
 }
 
-func getOpenWeatherUpdate(config types.Config) (cw types.CurrentWeather) {
+func getOpenWeatherUpdate(config type_definitions.Config) (cw type_definitions.CurrentWeather) {
 	req := fmt.Sprintf(owRequestTemplate, config.DefaultLocation.Lat, config.DefaultLocation.Lon, config.ApiKey)
 	resp, err := http.Get(req)
 	if err != nil {
@@ -102,17 +102,16 @@ func getOpenWeatherUpdate(config types.Config) (cw types.CurrentWeather) {
 	return cw
 }
 
-func GetOpenWeather(config types.Config, respCh chan types.CurrentWeather, wg *sync.WaitGroup) {
+func GetOpenWeather(config type_definitions.Config, respCh chan type_definitions.CurrentWeather, wg *sync.WaitGroup) {
 	weatherLock.Lock()
+	defer weatherLock.Unlock()
 	if lastFetched == nil {
 		log.Println("weather has not yet been fetched")
 		cw := getOpenWeatherUpdate(config)
 		lastFetched = &cw
-
 	} else {
 		log.Println("already got the weather!!")
 	}
-	defer weatherLock.Unlock()
 	respCh <- *lastFetched
-	wg.Done()
+	defer wg.Done()
 }

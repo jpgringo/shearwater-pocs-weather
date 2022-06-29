@@ -14,8 +14,11 @@ func defaultConfig() type_definitions.Config {
 			Lat: 43.64913651147442,
 			Lon: -79.45198018043132,
 		},
-		Service: "OpenWeather",
 	}
+}
+
+func TestGetOpenWeatherUpdate(t *testing.T) {
+	getOpenWeatherUpdate(defaultConfig())
 }
 
 func TestGetWeather(t *testing.T) {
@@ -23,13 +26,24 @@ func TestGetWeather(t *testing.T) {
 	respChan := make(chan type_definitions.CurrentWeather)
 	wg.Add(1)
 	config := defaultConfig()
-	go GetWeather(config, respChan, &wg)
+	go GetOpenWeather(config, respChan, &wg)
 receiveLoop:
 	for {
 		select {
 		case cw := <-respChan:
 			log.Println("received weather:", cw)
 			break receiveLoop
+		}
+	}
+	wg.Wait()
+	wg.Add(1)
+	go GetOpenWeather(config, respChan, &wg)
+loopTwo:
+	for {
+		select {
+		case cw := <-respChan:
+			log.Println("received weather:", cw)
+			break loopTwo
 		}
 	}
 	wg.Wait()
